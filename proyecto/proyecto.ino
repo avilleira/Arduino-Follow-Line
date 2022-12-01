@@ -21,15 +21,7 @@
 // Subject: Sistemas Empotrados y de Tiempo Real
 // Universidad Rey Juan Carlos, Spain
 
-#ifdef ESP32
-  #include <WiFi.h>
-#else
-  #include <ESP8266WiFi.h>
-#endif
-
-
-#include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
+#include "Arduino.h"
 
 // Variables
 #define TRIG_PIN 13  
@@ -38,6 +30,7 @@
 #define PIN_ITR20001_LEFT   A2
 #define PIN_ITR20001_MIDDLE A1
 #define PIN_ITR20001_RIGHT  A0
+
 // Enable/Disable motor control.
 //  HIGH: motor control enabled
 //  LOW: motor control disabled
@@ -64,12 +57,18 @@ const char* ssid = "sensoresurjc";
 const char* password = "Goox0sie_WZCGGh25680000";
 
 
-// Create an ESP8266 WiFiClient class to connect to the MQTT server.
-WiFiClient client;
-// Setup the MQTT client class by passing in the WiFi client and MQTT server and login details.
-Adafruit_MQTT_Client mqtt(&client, server, port, team_name, team_name, ID_EQUIPO);
-Adafruit_MQTT_Subscribe program = Adafruit_MQTT_Subscribe(&mqtt, team_name "/feeds/program");
-void MQTT_connect();
+// Messages
+int estado;
+long tracking_time = 0;
+bool line_lost_searching;
+String start[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "START_LAP"}};
+String finish[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "END_LAP"}, {"time: ", (char *)tracking_time}};
+String obstacle[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "OBSTACLE_DETECTED"}};
+String line_lost[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "LINE_LOST"}};
+String PING[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "PING"}, {"time: ", (char *)tracking_time}};
+String searching_line[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "INIT_LINE_SEARCH"}};
+String line_found[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "LINE_FOUND"}};
+String stop_searching[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "STOP_LINE_SEARCH"}};
 
 void setup(){
   Serial.begin(9600);
@@ -82,52 +81,18 @@ void setup(){
   // ultrasonic
   pinMode(ECHO_PIN, INPUT);
   pinMode(TRIG_PIN, OUTPUT);
-
-  // Connect to WiFi access point.
-  Serial.println(); Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println();
-
-  Serial.println("WiFi connected");
-  Serial.println("IP address: "); Serial.println(WiFi.localIP());
-  
-  // Setup MQTT subscription for program feed.
-  mqtt.subscribe(&program);
+  estado = 0;
 }
  
 void loop(){
-  // Ensure the connection to the MQTT server is alive (this will make the first
-  // connection and automatically reconnect when disconnected).  See the MQTT_connect
-  // function definition further below.
-  MQTT_connect();
-
-  // this is our 'wait for incoming subscription packets' busy subloop
-  // try to spend your time here
-
-  Adafruit_MQTT_Subscribe *subscription;
-  while ((subscription = mqtt.readSubscription(5000))) {
-    // Check if its the onoff button feed
-    Serial.print(F("On-Off button: "));
-    
-    if (strcmp((char *)program.lastread, "ON") == 0) {
-      Serial.print(F("low "));
-    }
-    if (strcmp((char *)program.lastread, "OFF") == 0) {
-      Serial.print(F("high "));
-    }
+  bool stop = stop_car;
+  if (stop) {
+    estado = 3;
   }
-
-  // ping the server to keep the mqtt connection alive
-  if(! mqtt.ping()) {
-    mqtt.disconnect();
-  }
+  // estado 0 avanzar
+  // estado 1 girar
+  // estado 2 encontrar linea
+  // estado 3 parar
 }
 
 float line_L(void) {
@@ -153,29 +118,13 @@ float UltraSonic_DistanceCm()
   return distance;
 }
 
-// Function to connect and reconnect as necessary to the MQTT server.
-// Should be called in the loop function and it will take care if connecting.
-void MQTT_connect() {
-  int8_t ret;
-
-  // Stop if already connected.
-  if (mqtt.connected()) {
-    return;
+bool stop_car() {
+  float distance = UltraSonic_DistanceCm();
+  if (distance < 10){
+    for (int i = 0;i <3; i++) {
+      Serial.write("data");
+    }
+    return true;
   }
-
-  Serial.print("Connecting to MQTT... ");
-
-  uint8_t retries = 3;
-  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       Serial.println(mqtt.connectErrorString(ret));
-       Serial.println("Retrying MQTT connection in 5 seconds...");
-       mqtt.disconnect();
-       delay(5000);  // wait 5 seconds
-       retries--;
-       if (retries == 0) {
-         // basically die and wait for WDT to reset me
-         while (1);
-       }
-  }
-  Serial.println("MQTT Connected!");
+  return false;
 }
