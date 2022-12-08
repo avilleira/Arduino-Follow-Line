@@ -26,8 +26,10 @@
 
 /************************* WiFi Access Point *********************************/
 
-#define WLAN_SSID       "sensoresurjc"
-#define WLAN_PASS       "Goox0sie_WZCGGh25680000"
+#define WLAN_SSID       "vodafone8653"
+//"sensoresurjc"
+#define WLAN_PASS       "4HJRC3GJRS6PKB"
+//"Goox0sie_WZCGGh25680000"
 
 /************************* Adafruit.io Setup *********************************/
 
@@ -49,7 +51,11 @@ Adafruit_MQTT_Client mqtt(&client, SERVER, SERVERPORT, USERNAME, USERNAME, KEY);
 /****************************** Feeds ***************************************/
 
 // Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
-Adafruit_MQTT_Subscribe program = Adafruit_MQTT_Subscribe(&mqtt, USERNAME "/SETR/2022/9/");
+Adafruit_MQTT_Subscribe slider = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/SETR/2022/9/");
+
+// Setup a feed called 'test' for publishing.
+// Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
+Adafruit_MQTT_Publish test = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/SETR/2022/9/");
 
 /*************************** Sketch Code ************************************/
 
@@ -80,7 +86,7 @@ void setup() {
   Serial.println("IP address: "); Serial.println(WiFi.localIP());
 
   // Setup MQTT subscription for onoff & slider feed.
-  mqtt.subscribe(&program);
+  mqtt.subscribe(&slider);
 }
 
 uint32_t x=0;
@@ -91,20 +97,18 @@ void loop() {
   // function definition further below.
   MQTT_connect();
 
-  // this is our 'wait for incoming subscription packets' busy subloop
-  // try to spend your time here
-
-  Adafruit_MQTT_Subscribe *subscription;
-  while ((subscription = mqtt.readSubscription(5000))) {
-    // check if its the slider feed
-    Serial.print("program: ");
-    Serial.print((char *)program.lastread);
+  // Now we can publish stuff!
+  Serial.print(F("\nSending val "));
+  Serial.print(x);
+  Serial.print(F(" to test feed..."));
+  if (! test.publish(x++)) {
+    Serial.println(F("Failed"));
+  } else {
+    Serial.println(F("OK!"));
   }
 
-  // ping the server to keep the mqtt connection alive
-  if(! mqtt.ping()) {
-    mqtt.disconnect();
-  }
+  // wait a couple seconds to avoid rate limit
+  delay(2000);
 
 }
 
