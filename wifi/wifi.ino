@@ -31,10 +31,10 @@
 
 /************************* Adafruit.io Setup *********************************/
 
-#define AIO_SERVER      "193.147.53.2"
-#define AIO_SERVERPORT  21883                   // use 8883 for SSL
-#define AIO_USERNAME    "Robotitos"
-#define AIO_KEY         "9"
+#define SERVER      "193.147.53.2"
+#define SERVERPORT  21883                   // use 8883 for SSL
+#define USERNAME    "Robotitos"
+#define KEY         "9"
 
 /************ Global State (you don't need to change this!) ******************/
 
@@ -44,13 +44,12 @@ WiFiClient client;
 //WiFiClientSecure client;
 
 // Setup the MQTT client class by passing in the WiFi client and MQTT server and login details.
-Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_USERNAME, AIO_KEY);
+Adafruit_MQTT_Client mqtt(&client, SERVER, SERVERPORT, USERNAME, USERNAME, KEY);
 
 /****************************** Feeds ***************************************/
 
 // Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
-Adafruit_MQTT_Subscribe onoffbutton = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/onoff");
-Adafruit_MQTT_Subscribe slider = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/SETR/2022/9/");
+Adafruit_MQTT_Subscribe program = Adafruit_MQTT_Subscribe(&mqtt, USERNAME "/SETR/2022/9/");
 
 /*************************** Sketch Code ************************************/
 
@@ -81,8 +80,7 @@ void setup() {
   Serial.println("IP address: "); Serial.println(WiFi.localIP());
 
   // Setup MQTT subscription for onoff & slider feed.
-  mqtt.subscribe(&onoffbutton);
-  mqtt.subscribe(&slider);
+  mqtt.subscribe(&program);
 }
 
 uint32_t x=0;
@@ -98,24 +96,9 @@ void loop() {
 
   Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(5000))) {
-    // Check if its the onoff button feed
-    if (subscription == &onoffbutton) {
-      Serial.print(F("On-Off button: "));
-      Serial.println((char *)onoffbutton.lastread);
-      
-      if (strcmp((char *)onoffbutton.lastread, "ON") == 0) {
-        Serial.print("MACACO"); 
-      }
-      if (strcmp((char *)onoffbutton.lastread, "OFF") == 0) {
-        Serial.print("TORTUGA");
-      }
-    }
     // check if its the slider feed
-    if (subscription == &slider) {
-      Serial.print(F("Slider: "));
-      Serial.println((char *)slider.lastread);
-      uint16_t sliderval = atoi((char *)slider.lastread);  // convert to a number
-    }
+    Serial.print("program: ");
+    Serial.print((char *)program.lastread);
   }
 
   // ping the server to keep the mqtt connection alive
