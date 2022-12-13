@@ -31,6 +31,8 @@
 #include "Adafruit_MQTT_Client.h"*/
 #include <Arduino_FreeRTOS.h>
 
+#include "Arduino.h"
+
 // Variables
 #define TRIG_PIN 13  
 #define ECHO_PIN 12 
@@ -39,6 +41,7 @@
 #define PIN_ITR20001_LEFT   A2
 #define PIN_ITR20001_MIDDLE A1
 #define PIN_ITR20001_RIGHT  A0
+
 // Enable/Disable motor control.
 //  HIGH: motor control enabled
 //  LOW: motor control disabled
@@ -77,6 +80,19 @@ const char* password = "Goox0sie_WZCGGh25680000";
 //Adafruit_MQTT_Subscribe program = Adafruit_MQTT_Subscribe(&mqtt, team_name "/feeds/program");
 
 //void MQTT_connect();
+// Messages
+int estado;
+long tracking_time = 0;
+bool line_lost_searching;
+String start[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "START_LAP"}};
+String finish[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "END_LAP"}, {"time: ", (char *)tracking_time}};
+String obstacle[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "OBSTACLE_DETECTED"}};
+String line_lost[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "LINE_LOST"}};
+String PING[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "PING"}, {"time: ", (char *)tracking_time}};
+String searching_line[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "INIT_LINE_SEARCH"}};
+String line_found[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "LINE_FOUND"}};
+String stop_searching[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "STOP_LINE_SEARCH"}};
+
 
 void setup(){
   Serial.begin(9600);
@@ -190,8 +206,14 @@ float UltraSonic_DistanceCm()
     mqtt.disconnect();
   }
 }*/
-
-void loop() {
+  estado = 0;
+}
+ 
+void loop(){
+  bool stop = stop_car;
+  if (stop) {
+    estado = 3;
+  }
   if(line_M){
     forward();
   }
@@ -203,32 +225,19 @@ void loop() {
     left();
     while(line_L);
   } 
+  // estado 0 avanzar
+  // estado 1 girar
+  // estado 2 encontrar linea
+  // estado 3 parar
 }
 
-
-// Function to connect and reconnect as necessary to the MQTT server.
-// Should be called in the loop function and it will take care if connecting.
-void MQTT_connect() {
-  int8_t ret;
-
-  // Stop if already connected.
-  if (mqtt.connected()) {
-    return;
+bool stop_car() {
+  float distance = UltraSonic_DistanceCm();
+  if (distance < 10){
+    for (int i = 0;i <3; i++) {
+      Serial.write("data");
+    }
+    return true;
   }
-
-  Serial.print("Connecting to MQTT... ");
-
-  uint8_t retries = 3;
-  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       Serial.println(mqtt.connectErrorString(ret));
-       Serial.println("Retrying MQTT connection in 5 seconds...");
-       mqtt.disconnect();
-       delay(5000);  // wait 5 seconds
-       retries--;
-       if (retries == 0) {
-         // basically die and wait for WDT to reset me
-         while (1);
-       }
-  }
-  Serial.println("MQTT Connected!");
+  return false;
 }
