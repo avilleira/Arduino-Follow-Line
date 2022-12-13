@@ -27,9 +27,9 @@
 #define TRIG_PIN 13  
 #define ECHO_PIN 12 
 #define MAX_DISTANCE 200 
-#define PIN_ITR20001_LEFT   A2
-#define PIN_ITR20001_MIDDLE A1
-#define PIN_ITR20001_RIGHT  A0
+#define PIN_ITR20001_LEFT   'A2'
+#define PIN_ITR20001_MIDDLE 'A1'
+#define PIN_ITR20001_RIGHT  'A0'
 
 // Enable/Disable motor control.
 //  HIGH: motor control enabled
@@ -58,7 +58,7 @@ const char* password = "Goox0sie_WZCGGh25680000";
 
 
 // Messages
-int estado;
+int state, previus_state;
 long tracking_time = 0;
 bool line_lost_searching;
 String start[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "START_LAP"}};
@@ -81,18 +81,42 @@ void setup(){
   // ultrasonic
   pinMode(ECHO_PIN, INPUT);
   pinMode(TRIG_PIN, OUTPUT);
-  estado = 0;
+
+  state = 0;
 }
  
 void loop(){
   bool stop = stop_car;
   if (stop) {
-    estado = 3;
+    state = 3;
+  } else {
+    state = line_tracking();
   }
   // estado 0 avanzar
   // estado 1 girar
   // estado 2 encontrar linea
   // estado 3 parar
+  
+  previus_state = state;
+}
+
+int line_tracking() {
+  float lineL = line_L();
+  float lineM = line_M();
+  float lineR = line_R();
+  int estado;
+
+  if (lineM < 800) {
+    estado = 0;
+  } else {
+    if ((lineR < 800) || (lineL < 800)) {
+      estado = 1;
+    } else {
+      estado = 2;
+    }
+  }
+
+  return estado;
 }
 
 float line_L(void) {
