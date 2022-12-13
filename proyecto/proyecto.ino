@@ -20,7 +20,7 @@
 
 // Subject: Sistemas Empotrados y de Tiempo Real
 // Universidad Rey Juan Carlos, Spain
-
+/*
 #ifdef ESP32
   #include <WiFi.h>
 #else
@@ -28,7 +28,8 @@
 #endif
 
 #include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
+#include "Adafruit_MQTT_Client.h"*/
+#include <Arduino_FreeRTOS.h>
 
 // Variables
 #define TRIG_PIN 13  
@@ -67,11 +68,15 @@ const char* password = "Goox0sie_WZCGGh25680000";
 
 
 // Create an ESP8266 WiFiClient class to connect to the MQTT server.
-WiFiClient client;
+
+//WiFiClient client;
+
 // Setup the MQTT client class by passing in the WiFi client and MQTT server and login details.
-Adafruit_MQTT_Client mqtt(&client, server, port, team_name, team_name, ID_EQUIPO);
-Adafruit_MQTT_Subscribe program = Adafruit_MQTT_Subscribe(&mqtt, team_name "/feeds/program");
-void MQTT_connect();
+
+// Adafruit_MQTT_Client mqtt(&client, server, port, team_name, team_name, ID_EQUIPO);
+//Adafruit_MQTT_Subscribe program = Adafruit_MQTT_Subscribe(&mqtt, team_name "/feeds/program");
+
+//void MQTT_connect();
 
 void setup(){
   Serial.begin(9600);
@@ -90,7 +95,7 @@ void setup(){
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
-  WiFi.begin(ssid, password);
+  /*WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -101,68 +106,39 @@ void setup(){
   Serial.println("IP address: "); Serial.println(WiFi.localIP());
   
   // Setup MQTT subscription for program feed.
-  mqtt.subscribe(&program);
+  mqtt.subscribe(&program);*/
 }
- 
-void loop(){
-  // Ensure the connection to the MQTT server is alive (this will make the first
-  // connection and automatically reconnect when disconnected).  See the MQTT_connect
-  // function definition further below.
-  MQTT_connect();
 
-  // this is our 'wait for incoming subscription packets' busy subloop
-  // try to spend your time here
-
-  Adafruit_MQTT_Subscribe *subscription;
-  while ((subscription = mqtt.readSubscription(5000))) {
-    // Check if its the onoff button feed
-    Serial.print(F("On-Off button: "));
-    
-    if (strcmp((char *)program.lastread, "ON") == 0) {
-      Serial.print(F("low "));
-    }
-    if (strcmp((char *)program.lastread, "OFF") == 0) {
-      Serial.print(F("high "));
-    }
-  }
-
-  // ping the server to keep the mqtt connection alive
-  if(! mqtt.ping()) {
-    mqtt.disconnect();
-  }
-}
 
 void forward() {
-  analogWrite(ENA, carSpeed);
-  analogWrite(ENB, carSpeed);
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
+  analogWrite(PIN_Motor_PWMA, SPEED);
+  analogWrite(PIN_Motor_PWMB, SPEED);
+  digitalWrite(PIN_Motor_AIN_1, HIGH);
+  digitalWrite(PIN_Motor_BIN_1, HIGH);
   Serial.println("go forward!");
 }
+
 void left(){
   analogWrite(PIN_Motor_PWMA, SPEED);
   analogWrite(PIN_Motor_PWMB, SPEED);
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
+  digitalWrite(PIN_Motor_AIN_1, HIGH);
+  digitalWrite(PIN_Motor_BIN_1, LOW);
   Serial.println("go left!");
 }
+
 void right(){
-  analogWrite(ENA, carSpeed);
-  analogWrite(ENB, carSpeed);
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
+  analogWrite(PIN_Motor_PWMA, SPEED);
+  analogWrite(PIN_Motor_PWMB, SPEED);
+  digitalWrite(PIN_Motor_AIN_1, LOW);
+  digitalWrite(PIN_Motor_BIN_1, HIGH);
   Serial.println("go right!");
 }
+
 void stop(){
-  digitalWrite(ENA, LOW);
-  digitalWrite(ENB, LOW);
+  analogWrite(PIN_Motor_PWMA, SPEED);
+  analogWrite(PIN_Motor_PWMB, SPEED);
   Serial.println("stop!")
+}
 
 float line_L(void) {
   return analogRead(PIN_ITR20001_LEFT);
@@ -186,6 +162,49 @@ float UltraSonic_DistanceCm()
   distance = pulseIn(ECHO_PIN, HIGH) / 58;
   return distance;
 }
+ 
+/* void loop(){
+  // Ensure the connection to the MQTT server is alive (this will make the first
+  // connection and automatically reconnect when disconnected).  See the MQTT_connect
+  // function definition further below.
+  //MQTT_connect();
+
+  // this is our 'wait for incoming subscription packets' busy subloop
+  // try to spend your time here
+
+  Adafruit_MQTT_Subscribe *subscription;
+  while ((subscription = mqtt.readSubscription(5000))) {
+    // Check if its the onoff button feed
+    Serial.print(F("On-Off button: "));
+    
+    if (strcmp((char *)program.lastread, "ON") == 0) {
+      Serial.print(F("low "));
+    }
+    if (strcmp((char *)program.lastread, "OFF") == 0) {
+      Serial.print(F("high "));
+    }
+  }
+
+  // ping the server to keep the mqtt connection alive
+  if(! mqtt.ping()) {
+    mqtt.disconnect();
+  }
+}*/
+
+void loop() {
+  if(line_M){
+    forward();
+  }
+  else if(line_R) {
+    right();
+    while(line_R);
+  }
+  else if(line_L) {
+    left();
+    while(line_L);
+  } 
+}
+
 
 // Function to connect and reconnect as necessary to the MQTT server.
 // Should be called in the loop function and it will take care if connecting.
