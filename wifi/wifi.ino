@@ -33,10 +33,10 @@
 
 /************************* Adafruit.io Setup *********************************/
 
-#define AIO_SERVER      "193.147.53.2"
-#define AIO_SERVERPORT  21883                   // use 8883 for SSL
-#define AIO_USERNAME    "Robotitos"
-#define AIO_KEY         "9"
+#define SERVER      "193.147.53.2"
+#define SERVERPORT  21883                   // use 8883 for SSL
+#define USERNAME    "Robotitos"
+#define KEY         "9"
 
 /************ Global State (you don't need to change this!) ******************/
 
@@ -46,7 +46,7 @@ WiFiClient client;
 //WiFiClientSecure client;
 
 // Setup the MQTT client class by passing in the WiFi client and MQTT server and login details.
-Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_USERNAME, AIO_KEY);
+Adafruit_MQTT_Client mqtt(&client, SERVER, SERVERPORT, USERNAME, USERNAME, KEY);
 
 /****************************** Feeds ***************************************/
 
