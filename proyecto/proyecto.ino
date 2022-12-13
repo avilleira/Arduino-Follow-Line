@@ -34,6 +34,7 @@
 #define TRIG_PIN 13  
 #define ECHO_PIN 12 
 #define MAX_DISTANCE 200 
+// INFRA RED SENSOR:
 #define PIN_ITR20001_LEFT   A2
 #define PIN_ITR20001_MIDDLE A1
 #define PIN_ITR20001_RIGHT  A0
@@ -53,6 +54,8 @@
 #define PIN_Motor_BIN_1 8
 // PIN_Motor_PWMB: Analog output [0-255]. It provides speed.
 #define PIN_Motor_PWMB 6
+
+#define SPEED 150
 
 #define team_name "Robotitos"
 #define ID_EQUIPO  "9"
@@ -128,6 +131,38 @@ void loop(){
     mqtt.disconnect();
   }
 }
+
+void forward() {
+  analogWrite(ENA, carSpeed);
+  analogWrite(ENB, carSpeed);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  Serial.println("go forward!");
+}
+void left(){
+  analogWrite(PIN_Motor_PWMA, SPEED);
+  analogWrite(PIN_Motor_PWMB, SPEED);
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  Serial.println("go left!");
+}
+void right(){
+  analogWrite(ENA, carSpeed);
+  analogWrite(ENB, carSpeed);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  Serial.println("go right!");
+}
+void stop(){
+  digitalWrite(ENA, LOW);
+  digitalWrite(ENB, LOW);
+  Serial.println("stop!")
 
 float line_L(void) {
   return analogRead(PIN_ITR20001_LEFT);
