@@ -49,7 +49,7 @@
 // PIN_Motor_PWMB: Analog output [0-255]. It provides speed.
 #define PIN_Motor_PWMB 6
 
-#define SPEED 150
+#define SPEED 50
 
 #define team_name "Robotitos"
 #define ID_EQUIPO  "9"
@@ -62,8 +62,12 @@ const char* password = "Goox0sie_WZCGGh25680000";
 int state, previus_state;
 long tracking_time = 0;
 bool line_lost_searching;
-int speed_A = 100;
-int speed_B = 100;
+bool stop;
+enum actions {
+  START, FINISH, OBSTACLE, LINE_LOST, LINE_FOUND, SEARCHING_LINE, STOP_SEARCHING, PING
+};
+
+/*
 String start[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "START_LAP"}};
 String finish[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "END_LAP"}, {"time: ", (char *)tracking_time}};
 String obstacle[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "OBSTACLE_DETECTED"}};
@@ -72,7 +76,7 @@ String PING[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: "
 String searching_line[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "INIT_LINE_SEARCH"}};
 String line_found[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "LINE_FOUND"}};
 String stop_searching[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "STOP_LINE_SEARCH"}};
-
+*/
 
 void setup(){
   Serial.begin(9600);
@@ -93,74 +97,89 @@ void setup(){
 
   //Inicio de la máquina de estados:
   state = 0;
+  stop = false;
 }
 
 
 void forward() {
-  /*digitalWrite(PIN_Motor_STBY, true);
-  digitalWrite(PIN_Motor_AIN_1, LOW);
-  analogWrite(PIN_Motor_PWMA, speed_A);
+  digitalWrite(PIN_Motor_STBY, true);
+  digitalWrite(PIN_Motor_AIN_1, HIGH);
+  analogWrite(PIN_Motor_PWMA, SPEED);
   digitalWrite(PIN_Motor_BIN_1, HIGH);
-  analogWrite(PIN_Motor_PWMB, speed_B);*/
+  analogWrite(PIN_Motor_PWMB, SPEED);
   Serial.println("go forward!");
 }
 
 void left(){
-  /*digitalWrite(PIN_Motor_STBY, true);
-  digitalWrite(PIN_Motor_AIN_1, LOW);
-  analogWrite(PIN_Motor_PWMA, speed_A);
+  digitalWrite(PIN_Motor_STBY, true);
+  digitalWrite(PIN_Motor_AIN_1, HIGH);
+  analogWrite(PIN_Motor_PWMA, SPEED);
   digitalWrite(PIN_Motor_BIN_1, LOW);
-  analogWrite(PIN_Motor_PWMB, speed_B);
-  */
+  analogWrite(PIN_Motor_PWMB, SPEED);
+  
   Serial.println("go left!");
 }
 
 void right(){
-  /*digitalWrite(PIN_Motor_STBY, true);
-  digitalWrite(PIN_Motor_AIN_1, HIGH);
-  analogWrite(PIN_Motor_PWMA, speed_A);
+  digitalWrite(PIN_Motor_STBY, true);
+  digitalWrite(PIN_Motor_AIN_1, LOW);
+  analogWrite(PIN_Motor_PWMA, SPEED);
   digitalWrite(PIN_Motor_BIN_1, HIGH);
-  analogWrite(PIN_Motor_PWMB, speed_B);*/
+  analogWrite(PIN_Motor_PWMB, SPEED);
   Serial.println("go right!");
 }
 
-void stop(){
-  /*digitalWrite(PIN_Motor_STBY, false);
+void stop_movement(){
+  digitalWrite(PIN_Motor_STBY, false);
   analogWrite(PIN_Motor_PWMB, 0);
-  analogWrite(PIN_Motor_PWMA, 0); */
+  analogWrite(PIN_Motor_PWMA, 0);
   Serial.println("stop!");
-
-  
 }
 
 void loop(){
-  bool stop = stop_car();
-  if (stop) {
-    state = 3;
-  } else {
-    state = line_tracking();
-  }
-  Serial.println(state);
-  if (state == 0) {
-    forward();
-  } else {
-    if (state == 1) {
-      if(line_R() > 100) {
-        right();
-      } else {
-        if(line_L() > 100) {
-          left();
-        } 
-      }
+  while (!stop) {
+    stop = stop_car();
+    if (stop) {
+      state = 3;
+    } else {
+      state = line_tracking();
     }
-  } //else if state == 2 {
+    
+    if (state == 0) {
+      previus_state = "foward";
+      forward();
+    } else {
+      if (state == 1) {
+        if(line_R() > 100) {
+          previus_state = "right";
+          right();
+        } else {
+          if(line_L() > 100) {
+            previus_state = "left";
+            left();
+          } 
+        }
+      } else {
+        if (state == 2) {
+          if (previus_state == "right") {
+            right();            
+          } else {
+            if (previus_state == "left") {
+              left();              
+            }
+          }
+        }        
+        if (state == 3) {
+          stop_movement();
+        }
+      }     
+    }
 
-  // estado 0 avanzar
-  // estado 1 girar
-  // estado 2 encontrar linea
-  // estado 3 parar
-  
-  previus_state = state;
+    // estado 0 avanzar
+    // estado 1 girar
+    // estado 2 encontrar linea
+    // estado 3 parar
+  }
 }
 
 int line_tracking() {
@@ -208,10 +227,8 @@ float UltraSonic_DistanceCm()
 
 bool stop_car() {
   float distance = UltraSonic_DistanceCm();
-  if (distance < 8){ //80
-    for (int i = 0;i < 3; i++) {
-      Serial.write("data");
-    }
+  if (distance < 8){ // 8 cm
+    Serial.write(OBSTACLE);
     return true;
   }
   return false;
