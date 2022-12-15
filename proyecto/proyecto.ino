@@ -96,7 +96,7 @@ void setup(){
   pinMode(TRIG_PIN, OUTPUT);
 
   //Inicio de la máquina de estados:
-  state = 0;
+  state = -1;
   stop = false;
 }
 
@@ -137,7 +137,14 @@ void stop_movement(){
 }
 
 void loop(){
+  if (state == -1) {
+    Serial.write(START);
+    state = 0;
+  }
+  long time_init = millis();
+  long time_finish;
   while (!stop) {
+
     stop = stop_car();
     if (stop) {
       state = 3;
@@ -171,6 +178,7 @@ void loop(){
         }        
         if (state == 3) {
           stop_movement();
+          Serial.write(FINISH);
         }
       }     
     }
