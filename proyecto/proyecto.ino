@@ -21,16 +21,23 @@
 // Subject: Sistemas Empotrados y de Tiempo Real
 // Universidad Rey Juan Carlos, Spain
 #include "Arduino.h"
+#include "FastLED.h"
 
 // Variables
+#define NUM_LEDS 1
+#define MAX_DISTANCE 200 
+
+// LED
+#define PIN_RBGLED 4
+
+// Ultrasonic sensor:
 #define TRIG_PIN 13  
 #define ECHO_PIN 12 
-#define MAX_DISTANCE 200 
+
 // INFRA RED SENSOR:
 #define PIN_ITR20001xxxL A2
 #define PIN_ITR20001xxxM A1
 #define PIN_ITR20001xxxR A0
-
 
 // Enable/Disable motor control.
 //  HIGH: motor control enabled
@@ -49,7 +56,7 @@
 // PIN_Motor_PWMB: Analog output [0-255]. It provides speed.
 #define PIN_Motor_PWMB 6
 
-#define SPEED 50
+#define SPEED_MAX 200
 
 #define team_name "Robotitos"
 #define ID_EQUIPO  "9"
@@ -63,9 +70,18 @@ int state, previus_state;
 long tracking_time = 0;
 bool line_lost_searching;
 bool stop;
+const int vmin=50;
+const int vmax=60;
+const float kp=0.02;
+const float ki=0.0004;
+const float kd=0.1;
+const float kv=1;
+int p,d,u,vbase;
+long i=0;
+int p_old=0;
 enum actions {
-  START, FINISH, OBSTACLE, LINE_LOST, LINE_FOUND, SEARCHING_LINE, STOP_SEARCHING, PING
-};
+  START, FINISH, OBSTACLE, LINE_LOST, LINE_FOUND, SEARCHING_LINE, STOP_SEARCHING, PING };
+CRGB leds[NUM_LEDS];
 
 /*
 String start[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "START_LAP"}};
@@ -86,6 +102,7 @@ void setup(){
   pinMode(PIN_ITR20001xxxM, INPUT);
   pinMode(PIN_ITR20001xxxR, INPUT);
 
+  // Motors  
   pinMode(PIN_Motor_PWMA, OUTPUT);
   pinMode(PIN_Motor_PWMB, OUTPUT);
   pinMode(PIN_Motor_AIN_1, OUTPUT);
@@ -95,56 +112,36 @@ void setup(){
   pinMode(ECHO_PIN, INPUT);
   pinMode(TRIG_PIN, OUTPUT);
 
+  // LED setup
+  FastLED.addLeds<NEOPIXEL, PIN_RBGLED>(leds, NUM_LEDS);
+  FastLED.setBrightness(20);
+
   //Inicio de la máquina de estados:
   state = -1;
   stop = false;
 }
-
-
-void forward() {
-  digitalWrite(PIN_Motor_STBY, true);
-  digitalWrite(PIN_Motor_AIN_1, HIGH);
-  analogWrite(PIN_Motor_PWMA, SPEED);
-  digitalWrite(PIN_Motor_BIN_1, HIGH);
-  analogWrite(PIN_Motor_PWMB, SPEED);
-  Serial.println("go forward!");
-}
-
-void left(){
-  digitalWrite(PIN_Motor_STBY, true);
-  digitalWrite(PIN_Motor_AIN_1, HIGH);
-  analogWrite(PIN_Motor_PWMA, SPEED);
-  digitalWrite(PIN_Motor_BIN_1, LOW);
-  analogWrite(PIN_Motor_PWMB, SPEED);
-  
-  Serial.println("go left!");
-}
-
-void right(){
-  digitalWrite(PIN_Motor_STBY, true);
-  digitalWrite(PIN_Motor_AIN_1, LOW);
-  analogWrite(PIN_Motor_PWMA, SPEED);
-  digitalWrite(PIN_Motor_BIN_1, HIGH);
-  analogWrite(PIN_Motor_PWMB, SPEED);
-  Serial.println("go right!");
-}
-
-void stop_movement(){
-  digitalWrite(PIN_Motor_STBY, false);
-  analogWrite(PIN_Motor_PWMB, 0);
-  analogWrite(PIN_Motor_PWMA, 0);
-  Serial.println("stop!");
-}
-
+/*
 void loop(){
+  // estado -1 inicio
+  // estado 0 avanzar
+  // estado 1 girar
+  // estado 2 encontrar linea
+  // estado 3 parar
+
   if (state == -1) {
-    Serial.write(START);
-    state = 0;
+    String message = serialPort_read();
+    FastLED.showColor(Color(255, 0, 0));
+    delay(1000);
+    /*
+    while (message == "None") {
+      message = serialPort_read();
+    }
+    
+    Serial.println(String(START) + "}");
   }
   long time_init = millis();
   long time_finish;
   while (!stop) {
-
     stop = stop_car();
     if (stop) {
       state = 3;
@@ -153,10 +150,12 @@ void loop(){
     }
     
     if (state == 0) {
+      FastLED.showColor(Color(0, 255, 0));
       previus_state = "foward";
       forward();
     } else {
       if (state == 1) {
+        FastLED.showColor(Color(0, 255, 0));
         if(line_R() > 100) {
           previus_state = "right";
           right();
@@ -168,6 +167,8 @@ void loop(){
         }
       } else {
         if (state == 2) {
+          FastLED.showColor(Color(255, 255, 0));
+          Serial.println(String(SEARCHING_LINE) + "}");         
           if (previus_state == "right") {
             right();            
           } else {
@@ -177,19 +178,152 @@ void loop(){
           }
         }        
         if (state == 3) {
+          FastLED.showColor(Color(0, 0, 255));
           stop_movement();
-          Serial.write(FINISH);
+          Serial.println(String(FINISH) + "}");
         }
       }     
     }
+  }
+}*/
+void loop(){
+  // estado -1 inicio
+  // estado 0 avanzar
+  // estado 1 girar
+  // estado 2 encontrar linea
+  // estado 3 parar
 
-    // estado 0 avanzar
-    // estado 1 girar
-    // estado 2 encontrar linea
-    // estado 3 parar
+  if (state == -1) {
+    String message = serialPort_read();
+    FastLED.showColor(Color(255, 0, 0));
+    delay(1000);
+    /*
+    while (message == "None") {
+      message = serialPort_read();
+    }
+    */
+    Serial.println(String(START) + "}");
+  }
+  long time_init = millis();
+  long time_finish;
+  while (!stop) {
+    stop = stop_car();
+    if (stop) {
+      state = 3;
+    } else {
+      state = line_tracking();
+    }
+    
+    if (state == 0) {
+      FastLED.showColor(Color(0, 255, 0));
+      previus_state = "foward";
+      follow_line();
+    } else {
+      if (state == 1) {
+        FastLED.showColor(Color(0, 255, 0));
+        if(line_R() > 100) {
+          previus_state = "right";
+          follow_line();
+        } else {
+          if(line_L() > 100) {
+            previus_state = "left";
+            follow_line();
+          } 
+        }
+      } else {
+        if (state == 2) {
+          FastLED.showColor(Color(255, 255, 0));
+          Serial.println(String(SEARCHING_LINE) + "}");         
+          if (previus_state == "right") {
+            right();            
+          } else {
+            if (previus_state == "left") {
+              left();              
+            }
+          }
+        }        
+        if (state == 3) {
+          FastLED.showColor(Color(0, 0, 255));
+          stop_movement();
+          Serial.println(String(FINISH) + "}");
+        }
+      }     
+    }
   }
 }
 
+// Seguir de frente
+void forward() {
+  digitalWrite(PIN_Motor_STBY, true);
+  digitalWrite(PIN_Motor_AIN_1, HIGH);
+  analogWrite(PIN_Motor_PWMA, SPEED_MAX);
+  digitalWrite(PIN_Motor_BIN_1, HIGH);
+  analogWrite(PIN_Motor_PWMB, SPEED_MAX);
+
+  Serial.println("go forward!");
+}
+
+// Girar a la izquierda
+void left(){
+  digitalWrite(PIN_Motor_STBY, true);
+  digitalWrite(PIN_Motor_AIN_1, HIGH);
+  analogWrite(PIN_Motor_PWMA, SPEED_MAX);
+  digitalWrite(PIN_Motor_BIN_1, LOW);
+  analogWrite(PIN_Motor_PWMB, SPEED_MAX);
+  
+  Serial.println("go left!");
+}
+
+// Girar a la derecha
+void right(){
+  digitalWrite(PIN_Motor_STBY, true);
+  digitalWrite(PIN_Motor_AIN_1, LOW);
+  analogWrite(PIN_Motor_PWMA, SPEED_MAX);
+  digitalWrite(PIN_Motor_BIN_1, HIGH);
+  analogWrite(PIN_Motor_PWMB, SPEED_MAX);
+
+  Serial.println("go right!");
+}
+
+// Detener el movimiento
+void stop_movement(){
+  digitalWrite(PIN_Motor_STBY, false);
+  analogWrite(PIN_Motor_PWMB, 0);
+  analogWrite(PIN_Motor_PWMA, 0);
+
+  Serial.println("stop!");
+}
+
+uint32_t Color(uint8_t r, uint8_t g, uint8_t b)
+{
+  return (((uint32_t)r << 16) | ((uint32_t)g << 8) | b);
+}
+
+void follow_line() {
+  float lineL = line_L();
+  float lineM = line_M();
+  float lineR = line_R();
+  p = lineL - lineR;
+  i=i+p;
+  d=p-p_old;
+  p_old=p;
+  if ((p*i)<0) i=0;  // integral windup
+
+  u=kp*p+ki*i+kd*d;
+  vbase=vmin+(vmax-vmin)*exp(-kv*abs(0.0015*p));
+  drive(vbase+u,vbase-u);
+}
+
+void drive(int L, int R) // speed for wheels Left and Right, positive is forward
+{
+  digitalWrite(PIN_Motor_STBY, true);
+  digitalWrite(PIN_Motor_AIN_1, HIGH);
+  analogWrite(PIN_Motor_PWMA, L);
+  digitalWrite(PIN_Motor_BIN_1, HIGH);
+  analogWrite(PIN_Motor_PWMB, R);
+}
+
+// Calculo de giro
 int line_tracking() {
   float lineL = line_L();
   float lineM = line_M();
@@ -201,13 +335,14 @@ int line_tracking() {
     if ((lineR > 100) || (lineL > 100)) {
       estado = 1;
     } else {
+      Serial.println(String(LINE_LOST) + "}");   
       estado = 2;
     }
   }
-
   return estado;
 }
 
+// Lecturas del sensor infrarojo
 float line_L(void) {
   return analogRead(PIN_ITR20001xxxL);
 }
@@ -218,6 +353,7 @@ float line_R(void) {
   return analogRead(PIN_ITR20001xxxR);
 }
 
+// Lectura del sensor ultrasonido
 float UltraSonic_DistanceCm()
 {
   digitalWrite(TRIG_PIN, LOW);
@@ -233,16 +369,18 @@ float UltraSonic_DistanceCm()
   return distance;
 }
 
+// Calculo de la distancia al obstaculo
 bool stop_car() {
   float distance = UltraSonic_DistanceCm();
   if (distance < 8){ // 8 cm
-    Serial.write(OBSTACLE);
+    Serial.println(String(OBSTACLE) + "}");
     return true;
   }
   return false;
 }
 
-void serialPort_read() {
+// Lectura del puerto serie
+String serialPort_read() {
   static String SerialPortData = "";
   uint8_t c = "";
   if (Serial.available() > 0) {
@@ -250,5 +388,8 @@ void serialPort_read() {
       c = Serial.read();
       SerialPortData += (char)c;
     }
+    return SerialPortData;
+  } else {
+    return "None";
   }
 }
