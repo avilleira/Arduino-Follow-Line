@@ -67,15 +67,16 @@ const char* ssid = "sensoresurjc";
 const char* password = "Goox0sie_WZCGGh25680000";
 
 int state, previus_state;
-long tracking_time = 0;
+unsigned long tracking_time = 0;
+unsigned long time_lost_init;
 bool line_lost_searching;
 bool stop;
 const int vmin=50;
-const int vmax=60;
-const float kp=0.02;
+const int vmax=150;
+const float kp=0.07;
 const float ki=0.0004;
-const float kd=0.1;
-const float kv=1;
+const float kd=0.01;
+const float kv=1.5;
 int p,d,u,vbase;
 long i=0;
 int p_old=0;
@@ -232,8 +233,12 @@ void loop(){
         }
       } else {
         if (state == 2) {
-          FastLED.showColor(Color(255, 255, 0));
-          Serial.println(String(SEARCHING_LINE) + "}");         
+          if (line_lost_searching) {
+            line_lost_searching = false;
+            FastLED.showColor(Color(0, 0, 255));
+            Serial.println(String(SEARCHING_LINE) + "}");
+          }
+
           if (previus_state == "right") {
             right();            
           } else {
@@ -243,9 +248,10 @@ void loop(){
           }
         }        
         if (state == 3) {
-          FastLED.showColor(Color(0, 0, 255));
+          FastLED.showColor(Color(255, 0, 255));
           stop_movement();
           Serial.println(String(FINISH) + "}");
+          stop = true;
         }
       }     
     }
@@ -307,15 +313,14 @@ void follow_line() {
   i=i+p;
   d=p-p_old;
   p_old=p;
-  if ((p*i)<0) i=0;  // integral windup
+  if ((p*i)<0) i=0;
 
   u=kp*p+ki*i+kd*d;
-  vbase=vmin+(vmax-vmin)*exp(-kv*abs(0.0015*p));
+  vbase=vmin+(vmax-vmin)*exp(-kv*abs(kp*p));
   drive(vbase+u,vbase-u);
 }
 
-void drive(int L, int R) // speed for wheels Left and Right, positive is forward
-{
+void drive(int L, int R) {
   digitalWrite(PIN_Motor_STBY, true);
   digitalWrite(PIN_Motor_AIN_1, HIGH);
   analogWrite(PIN_Motor_PWMA, L);
@@ -334,9 +339,19 @@ int line_tracking() {
   } else {
     if ((lineR > 100) || (lineL > 100)) {
       estado = 1;
+      line_lost_searching = false;
+      time_lost_init = millis();
     } else {
-      Serial.println(String(LINE_LOST) + "}");   
-      estado = 2;
+      if (!line_lost_searching) {
+        estado = 2;
+      }
+      if (millis() - time_lost_init > 1500) {
+        Serial.println(String(LINE_LOST) + "}");
+        line_lost_searching = true;       
+      }
+      if (millis() - time_lost_init > 5000) {
+        estado = 3;       
+      }      
     }
   }
   return estado;
