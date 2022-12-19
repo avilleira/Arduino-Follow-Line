@@ -71,8 +71,8 @@ unsigned long tracking_time = 0;
 unsigned long time_lost_init;
 bool line_lost_searching;
 bool stop;
-const int vmin=50;
-const int vmax=150;
+const int vmin=100;
+const int vmax=200;
 const float kp=0.07;
 const float ki=0.0004;
 const float kd=0.01;
@@ -121,7 +121,7 @@ void setup(){
   state = -1;
   stop = false;
 }
-/*
+
 void loop(){
   // estado -1 inicio
   // estado 0 avanzar
@@ -132,77 +132,9 @@ void loop(){
   if (state == -1) {
     String message = serialPort_read();
     FastLED.showColor(Color(255, 0, 0));
-    delay(1000);
-    /*
-    while (message == "None") {
+    /*while (message == "None") {
       message = serialPort_read();
-    }
-    
-    Serial.println(String(START) + "}");
-  }
-  long time_init = millis();
-  long time_finish;
-  while (!stop) {
-    stop = stop_car();
-    if (stop) {
-      state = 3;
-    } else {
-      state = line_tracking();
-    }
-    
-    if (state == 0) {
-      FastLED.showColor(Color(0, 255, 0));
-      previus_state = "foward";
-      forward();
-    } else {
-      if (state == 1) {
-        FastLED.showColor(Color(0, 255, 0));
-        if(line_R() > 100) {
-          previus_state = "right";
-          right();
-        } else {
-          if(line_L() > 100) {
-            previus_state = "left";
-            left();
-          } 
-        }
-      } else {
-        if (state == 2) {
-          FastLED.showColor(Color(255, 255, 0));
-          Serial.println(String(SEARCHING_LINE) + "}");         
-          if (previus_state == "right") {
-            right();            
-          } else {
-            if (previus_state == "left") {
-              left();              
-            }
-          }
-        }        
-        if (state == 3) {
-          FastLED.showColor(Color(0, 0, 255));
-          stop_movement();
-          Serial.println(String(FINISH) + "}");
-        }
-      }     
-    }
-  }
-}*/
-void loop(){
-  // estado -1 inicio
-  // estado 0 avanzar
-  // estado 1 girar
-  // estado 2 encontrar linea
-  // estado 3 parar
-
-  if (state == -1) {
-    String message = serialPort_read();
-    FastLED.showColor(Color(255, 0, 0));
-    delay(1000);
-    /*
-    while (message == "None") {
-      message = serialPort_read();
-    }
-    */
+    }*/
     Serial.println(String(START) + "}");
   }
   long time_init = millis();
