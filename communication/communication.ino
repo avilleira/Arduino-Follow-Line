@@ -55,12 +55,9 @@ Adafruit_MQTT_Client mqtt(&client, SERVER, SERVERPORT, USERNAME, USERNAME, KEY);
 
 /****************************** Feeds ***************************************/
 
-// Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
-Adafruit_MQTT_Subscribe slider = Adafruit_MQTT_Subscribe(&mqtt, USERNAME "/SETR/2022/9/");
-
 // Setup a feed called 'test' for publishing.
 // Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
-Adafruit_MQTT_Publish test = Adafruit_MQTT_Publish(&mqtt, USERNAME "/SETR/2022/9/");
+Adafruit_MQTT_Publish pub = Adafruit_MQTT_Publish(&mqtt, "/SETR/2022/9/");
 
 /*************************** Sketch Code ************************************/
 
@@ -70,7 +67,13 @@ Adafruit_MQTT_Publish test = Adafruit_MQTT_Publish(&mqtt, USERNAME "/SETR/2022/9
 // Function to connect and reconnect as necessary to the MQTT server.
 // Should be called in the loop function and it will take care if connecting.
 
-// Reserving Memory for the JSON files:
+// Creating JSON objects:
+
+ //JSONVar start_lap;
+ //
+ //start_lap["team_name"] = "Robotitos";
+ //start_lap["id"] = 9;
+
 
 void initWiFi() {
 
@@ -112,30 +115,36 @@ void MQTT_connect() {
   }
 
   Serial.println("MQTT Connected!");
-
-
-
+  digitalWrite(LED, HIGH);
+  Serial2.println("A");
 }
+
+String sendBuff;
 
 void recv_serial_msg() {
   if (Serial2.available()) {
-
-    char c = Serial2.read();
-    sendBuff += c;
     
-    if (c == '}')  {            
+    char c = Serial2.read();
+    if (c != '}') 
+      sendBuff += c;
+    
+    if (c == '}')  {        
       Serial.print("Received data in serial port from Arduino: ");
       Serial.println(sendBuff);
-
       sendBuff = "";
     } 
   }
+}
+
+void publisher(String data) {
 
 }
 
 void setup() {
 
   Serial.begin(9600);
+  pinMode(LED, OUTPUT);
+  digitalWrite(LED, LOW);
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
   initWiFi();
   delay(10);
@@ -157,6 +166,9 @@ void setup() {
   Serial.println("WiFi connected");
   Serial.println("IP address: "); Serial.println(WiFi.localIP());
 
+  JSONVar myobject;
+  myobject["HOLA"] = "hola";
+
   // Setup MQTT subscription for onoff & slider feed.
   mqtt.subscribe(&slider);
 }
@@ -168,17 +180,9 @@ void loop() {
   // connection and automatically reconnect when disconnected).  See the MQTT_connect
   // function definition further below.
   MQTT_connect();
-
-  // Now we can publish stuff!
-  Serial.print(F("\nSending val "));
-  Serial.print(x);
-  Serial.print(F(" to test feed..."));
-  if (! test.publish(x++)) {
-    Serial.println(F("Failed"));
-  } else {
-    Serial.println(F("OK!"));
-  }
-
+  pub.publish("1");
+  recv_serial_msg();
+  
   // wait a couple seconds to avoid rate limit
   delay(2000);
 
