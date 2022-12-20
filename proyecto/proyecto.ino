@@ -25,7 +25,7 @@
 
 // Variables
 #define NUM_LEDS 1
-#define MAX_DISTANCE 200 
+#define MAX_DISTANCE 100 
 
 // LED
 #define PIN_RBGLED 4
@@ -72,7 +72,7 @@ unsigned long time_lost_init;
 bool line_lost_searching;
 bool stop;
 const int vmin=100;
-const int vmax=200;
+const int vmax=150;
 const float kp=0.07;
 const float ki=0.0004;
 const float kd=0.01;
@@ -135,6 +135,7 @@ void loop(){
     /*while (message == "None") {
       message = serialPort_read();
     }*/
+    Serial.println(message);
     Serial.println(String(START) + "}");
   }
   long time_init = millis();
@@ -154,11 +155,11 @@ void loop(){
     } else {
       if (state == 1) {
         FastLED.showColor(Color(0, 255, 0));
-        if(line_R() > 100) {
+        if(line_R() > 500) {
           previus_state = "right";
           follow_line();
         } else {
-          if(line_L() > 100) {
+          if(line_L() > 500) {
             previus_state = "left";
             follow_line();
           } 
@@ -266,10 +267,12 @@ int line_tracking() {
   float lineM = line_M();
   float lineR = line_R();
   int estado;
-  if (lineM > 100) {
+  if (lineM > 500) {
     estado = 0;
+    line_lost_searching = false;
+    time_lost_init = millis();
   } else {
-    if ((lineR > 100) || (lineL > 100)) {
+    if ((lineR > 500) || (lineL > 500)) {
       estado = 1;
       line_lost_searching = false;
       time_lost_init = millis();
@@ -277,11 +280,11 @@ int line_tracking() {
       if (!line_lost_searching) {
         estado = 2;
       }
-      if (millis() - time_lost_init > 1500) {
+      if ((millis() - time_lost_init > 1000) && (millis() - time_lost_init < 1100)) {
         Serial.println(String(LINE_LOST) + "}");
         line_lost_searching = true;       
       }
-      if (millis() - time_lost_init > 5000) {
+      if (millis() - time_lost_init > 3000) {
         estado = 3;       
       }      
     }
@@ -319,7 +322,7 @@ float UltraSonic_DistanceCm()
 // Calculo de la distancia al obstaculo
 bool stop_car() {
   float distance = UltraSonic_DistanceCm();
-  if (distance < 8){ // 8 cm
+  if (distance < 10) { // 8 cm
     Serial.println(String(OBSTACLE) + "}");
     return true;
   }
