@@ -18,7 +18,7 @@
 #endif
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
-#include <Arduino_JSON.h>
+#include <ArduinoJson.h>
 
 // the on off button feed turns this LED on/off
 #define LED 2  
@@ -27,11 +27,13 @@
 
 /************************* WiFi Access Point *********************************/
 
-#define WLAN_SSID "sensoresurjc"   
+#define WLAN_SSID "MIWIFI_5G"  
 //"vodafone8653"
+// "MIWIFI_5G"
 
-#define WLAN_PASS   "Goox0sie_WZCGGh25680000"
+#define WLAN_PASS   "POYOYO64"
 //"Goox0sie_WZCGGh25680000"
+// "POYOYO64"
 /************************* Adafruit.io Setup *********************************/
 
 #define SERVER      "193.147.53.2"
@@ -45,6 +47,16 @@
 #define RXD2 33
 #define TXD2 4
 
+// Enumeration of all the possible actions:
+enum actions {
+  START,
+  FINISH,
+  OBSTACLE, 
+  LINE_LOST, 
+  LINE_FOUND, 
+  SEARCHING_LINE, 
+  STOP_SEARCHING, 
+  PING };
 // Create an ESP8266 WiFiClient class to connect to the MQTT server.
 WiFiClient client;
 // or... use WiFiFlientSecure for SSL
@@ -73,6 +85,10 @@ Adafruit_MQTT_Publish pub = Adafruit_MQTT_Publish(&mqtt, "/SETR/2022/9/");
  //
  //start_lap["team_name"] = "Robotitos";
  //start_lap["id"] = 9;
+
+ //Creating all the possible messages. We define two differents types of JSON messages, first with time stamp and second without it:
+ StaticJsonDocument<256> msg_no_time; // For START, OBSTACLE_DETECTED, LINE_LOST, SEARCHING_LINE, STOP_SEARCHING, LINE_FOUND
+ StaticJsonDocument<256> msg_time;
 
 
 void initWiFi() {
@@ -136,12 +152,16 @@ void recv_serial_msg() {
   }
 }
 
-void publisher(String data) {
+void publish_msg() {
+  msg_no_time["action"] = "START_LAP";
 
+  //Serializing in order to publish in the topic:
+  char out[128];
+  serializeJson(msg_no_time, out);
+  pub.publish(out);
 }
 
 void setup() {
-
   Serial.begin(9600);
   pinMode(LED, OUTPUT);
   digitalWrite(LED, LOW);
@@ -166,11 +186,12 @@ void setup() {
   Serial.println("WiFi connected");
   Serial.println("IP address: "); Serial.println(WiFi.localIP());
 
-  JSONVar myobject;
-  myobject["HOLA"] = "hola";
-
-  // Setup MQTT subscription for onoff & slider feed.
-  mqtt.subscribe(&slider);
+  //Initializing first values of the JSON msgs:
+  //When it has time:
+  msg_no_time["team_name"] = "Robotitos";
+  msg_time["team_name"] = "Robotitos";
+  msg_no_time["id"] = "9";
+  msg_time["id"] = "9";
 }
 
 uint32_t x=0;
@@ -180,7 +201,7 @@ void loop() {
   // connection and automatically reconnect when disconnected).  See the MQTT_connect
   // function definition further below.
   MQTT_connect();
-  pub.publish("1");
+  publish_msg();
   recv_serial_msg();
   
   // wait a couple seconds to avoid rate limit
