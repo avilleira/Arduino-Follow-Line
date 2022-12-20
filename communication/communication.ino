@@ -18,6 +18,7 @@
 #endif
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
+#include <Arduino_JSON.h>
 
 // the on off button feed turns this LED on/off
 #define LED 2  
@@ -39,6 +40,10 @@
 #define KEY         "9"
 
 /************ Global State (you don't need to change this!) ******************/
+
+/***************** Serial2 variables******************************************/
+#define RXD2 33
+#define TXD2 4
 
 // Create an ESP8266 WiFiClient class to connect to the MQTT server.
 WiFiClient client;
@@ -64,6 +69,8 @@ Adafruit_MQTT_Publish test = Adafruit_MQTT_Publish(&mqtt, USERNAME "/SETR/2022/9
 
 // Function to connect and reconnect as necessary to the MQTT server.
 // Should be called in the loop function and it will take care if connecting.
+
+// Reserving Memory for the JSON files:
 
 void initWiFi() {
 
@@ -103,12 +110,33 @@ void MQTT_connect() {
          while (1);
        }
   }
+
   Serial.println("MQTT Connected!");
+
+
+
+}
+
+void recv_serial_msg() {
+  if (Serial2.available()) {
+
+    char c = Serial2.read();
+    sendBuff += c;
+    
+    if (c == '}')  {            
+      Serial.print("Received data in serial port from Arduino: ");
+      Serial.println(sendBuff);
+
+      sendBuff = "";
+    } 
+  }
+
 }
 
 void setup() {
 
   Serial.begin(9600);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
   initWiFi();
   delay(10);
 
