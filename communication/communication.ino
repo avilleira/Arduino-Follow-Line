@@ -27,13 +27,10 @@
 
 /************************* WiFi Access Point *********************************/
 
-#define WLAN_SSID "MIWIFI_5G"  
-//"vodafone8653"
-// "MIWIFI_5G"
+#define WLAN_SSID "sensoresurjc"  
 
-#define WLAN_PASS   "POYOYO64"
+#define WLAN_PASS   "Goox0sie_WZCGGh25680000"
 //"Goox0sie_WZCGGh25680000"
-// "POYOYO64"
 /************************* Adafruit.io Setup *********************************/
 
 #define SERVER      "193.147.53.2"
@@ -53,6 +50,9 @@ unsigned long ping_counter;
 unsigned long lap_timer;
 
 bool stop = false;
+bool lap_started = false;
+
+int prev_state;
 
 // Enumeration of all the possible actions:
 enum actions {
@@ -92,8 +92,7 @@ void initWiFi() {
   WiFi.begin(WLAN_SSID, WLAN_PASS);
   Serial.print("Connecting to WiFi ..");
   while (WiFi.status() != WL_CONNECTED) {
-    Serial.print('.');
-    delay(1000);
+    delay(500);
   }
 
   Serial.print("IP Address: ");
@@ -130,68 +129,59 @@ void MQTT_connect() {
   Serial2.println("A");
 }
 
-String sendBuff;
-
-long recv_serial_msg() {
-  char c;
-  long action;
-  if (Serial2.available()) {
+int recv_serial_msg() {
+  uint8_t c;
+  int action;
+  String sendBuff;
+  if (Serial2.available() > 0) {
     
     c = Serial2.read();
-    if (c != '}') 
-      sendBuff += c;
-    
-    if (c == '}')  {        
-      Serial.print("Received data in serial port from Arduino: ");
-      Serial.println(sendBuff);
-      action = sendBuff.toInt();
-      sendBuff = "";
-    } 
-  }
-  if (action < START || action > PING)
-    return -1;
-  else
+    sendBuff += (char)c;     
+    action = sendBuff.toInt();
     return action;
+  }
+  else
+    return -1;
 }
 
 void publish_msg(int action) {
 
   StaticJsonDocument<256> msg;
   char out[128];
+  Serial.println(action);
+  if ((action < 9) && (action > 0)) {
+    msg["team_name"] = "Robotitos";
+    msg["id"] = "9";
+    if (action == FINISH){
+      msg["action"] = "END_LAP";
+      msg["time"] = millis() - lap_timer;
+      stop = true;
+    }
+    else if (action == OBSTACLE)
+      msg["action"] = "OBSTACLE_DETECTED";
+    else if (action == LINE_LOST)
+      msg["action"] = "LINE_LOST";
+    else if (action == LINE_FOUND)
+      msg["action"] = "LINE_FOUND";
+    else if (action == SEARCHING_LINE)
+      msg["action"] = "INIT_LINE_SEARCH";
+    else if (action == STOP_SEARCHING)
+      msg["action"] = "STOP_LINE_SEARCH";
+    else if (action == PING) {
+      msg["action"] = "PING";
+      msg["time"] = millis() - lap_timer;
+    }
 
-  msg["team_name"] = "Robotitos";
-  msg["id"] = "9";
-  if (action == START){
-    Serial.println("ENTRO");
-    msg["action"] = "START_LAP";
-  }
-  else if (action == FINISH){
-    msg["action"] = "END_LAP";
-    msg["time"] = millis() - lap_timer;
-  }
-  else if (action == OBSTACLE)
-    msg["action"] = "OBSTACLE_DETECTED";
-  else if (action == LINE_LOST)
-    msg["action"] = "LINE_LOST";
-  else if (action == LINE_FOUND)
-    msg["action"] = "LINE_FOUND";
-  else if (action == SEARCHING_LINE)
-    msg["action"] = "INIT_LINE_SEARCH";
-  else if (action == STOP_SEARCHING)
-    msg["action"] = "STOP_LINE_SEARCH";
-  else{
-    msg["action"] = "PING";
-    msg["time"] = millis() - lap_timer;
-  }
-
-  //Serializing in order to publish in the topic:
-  if (action != -1) {
-    serializeJson(msg, out);
-    pub.publish(out);
+    //Serializing in order to publish in the topic:
+    if (action != -1) {
+      serializeJson(msg, out);
+      pub.publish(out);
+    }
   }
 }
 
 void setup() {
+  char out[128];
   Serial.begin(9600);
   pinMode(LED, OUTPUT);
   digitalWrite(LED, LOW);
@@ -218,8 +208,12 @@ void setup() {
 
   // publishing start lap:
   MQTT_connect();
-  publish_msg(START);
-
+  StaticJsonDocument<256> start_msg;
+  start_msg["team_name"] = "Robotitos";
+  start_msg["id"] = "9";
+  start_msg["action"] = "START_LAP";
+  serializeJson(start_msg, out);
+  pub.publish(out);
   // Initializing lap_counter:
   lap_timer = millis();
   // Initializing ping_counter:
@@ -230,15 +224,13 @@ void loop() {
   // Ensure the connection to the MQTT server is alive (this will make the first
   // connection and automatically reconnect when disconnected).  See the MQTT_connect
   // function definition further below.
-  MQTT_connect();
   while (!stop) {
     //updating ping_counter:
-    if ((millis() - ping_counter) > 4000) {
+    if ((millis() - ping_counter) >= 4000) {
       publish_msg(PING);
       ping_counter = millis();
     }
-
-    //Publishing the corresponding message:
     publish_msg(recv_serial_msg());
+    //Publishing the corresponding message:
   }
 }
