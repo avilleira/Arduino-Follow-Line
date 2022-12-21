@@ -161,34 +161,35 @@ void publish_msg(int action) {
 
   msg["team_name"] = "Robotitos";
   msg["id"] = "9";
-  if (action == START){
-    Serial.println("ENTRO");
-    msg["action"] = "START_LAP";
-  }
-  else if (action == FINISH){
-    msg["action"] = "END_LAP";
-    msg["time"] = millis() - lap_timer;
-  }
-  else if (action == OBSTACLE)
-    msg["action"] = "OBSTACLE_DETECTED";
-  else if (action == LINE_LOST)
-    msg["action"] = "LINE_LOST";
-  else if (action == LINE_FOUND)
-    msg["action"] = "LINE_FOUND";
-  else if (action == SEARCHING_LINE)
-    msg["action"] = "INIT_LINE_SEARCH";
-  else if (action == STOP_SEARCHING)
-    msg["action"] = "STOP_LINE_SEARCH";
-  else{
-    msg["action"] = "PING";
-    msg["time"] = millis() - lap_timer;
-  }
+  if ()
+    if (action == START){
+      Serial.println("ENTRO");
+      msg["action"] = "START_LAP";
+    }
+    else if (action == FINISH){
+      msg["action"] = "END_LAP";
+      msg["time"] = millis() - lap_timer;
+    }
+    else if (action == OBSTACLE)
+      msg["action"] = "OBSTACLE_DETECTED";
+    else if (action == LINE_LOST)
+      msg["action"] = "LINE_LOST";
+    else if (action == LINE_FOUND)
+      msg["action"] = "LINE_FOUND";
+    else if (action == SEARCHING_LINE)
+      msg["action"] = "INIT_LINE_SEARCH";
+    else if (action == STOP_SEARCHING)
+      msg["action"] = "STOP_LINE_SEARCH";
+    else{
+      msg["action"] = "PING";
+      msg["time"] = millis() - lap_timer;
+    }
 
-  //Serializing in order to publish in the topic:
-  if (action != -1) {
-    serializeJson(msg, out);
-    pub.publish(out);
-  }
+    //Serializing in order to publish in the topic:
+    if (action != -1) {
+      serializeJson(msg, out);
+      pub.publish(out);
+    }
 }
 
 void setup() {
