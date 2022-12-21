@@ -1,33 +1,7 @@
-/*
-* Copyright (C) 2022 by Roberto Calvo-Palomino
-*
-*
-*  This programa is free software: you can redistribute it and/or modify
-*  it under the terms of the GNU General Public License as published by
-*  the Free Software Foundation, either version 3 of the License, or
-*  (at your option) any later version.
-*
-*  This program is distributed in the hope that it will be useful,
-*  but WITHOUT ANY WARRANTY; without even the implied warranty of
-*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*  GNU General Public License for more details.
-*
-*  You should have received a copy of the GNU General Public License
-*  along with RTL-Spec.  If not, see <http://www.gnu.org/licenses/>.
-*
-*   Authors: Roberto Calvo-Palomino <roberto.calvo [at] urjc [dot] es>
-*/
-
-// Subject: Sistemas Empotrados y de Tiempo Real
-// Universidad Rey Juan Carlos, Spain
 #include "Arduino.h"
 #include "FastLED.h"
 
-// Variables
-#define NUM_LEDS 1
-#define MAX_DISTANCE 100 
-
-// LED
+// LED:
 #define PIN_RBGLED 4
 
 // Ultrasonic sensor:
@@ -56,23 +30,28 @@
 // PIN_Motor_PWMB: Analog output [0-255]. It provides speed.
 #define PIN_Motor_PWMB 6
 
-#define SPEED_MAX 200
+// definiciones
+#define NUM_LEDS 1
+#define MAX_DISTANCE 10 
+#define SPEED_MAX 150
 
 #define team_name "Robotitos"
 #define ID_EQUIPO  "9"
 #define server "193.147.53.2"
 #define port 21883
 
+// internet data
 const char* ssid = "sensoresurjc";
 const char* password = "Goox0sie_WZCGGh25680000";
 
+// Variables
 int state, previus_state;
-unsigned long tracking_time = 0;
 unsigned long time_lost_init;
 bool line_lost_searching;
+bool lost;
 bool stop;
-const int vmin=100;
-const int vmax=150;
+const int vmin=80;
+const int vmax=130;
 const float kp=0.07;
 const float ki=0.0004;
 const float kd=0.01;
@@ -83,17 +62,6 @@ int p_old=0;
 enum actions {
   START, FINISH, OBSTACLE, LINE_LOST, LINE_FOUND, SEARCHING_LINE, STOP_SEARCHING, PING };
 CRGB leds[NUM_LEDS];
-
-/*
-String start[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "START_LAP"}};
-String finish[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "END_LAP"}, {"time: ", (char *)tracking_time}};
-String obstacle[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "OBSTACLE_DETECTED"}};
-String line_lost[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "LINE_LOST"}};
-String PING[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "PING"}, {"time: ", (char *)tracking_time}};
-String searching_line[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "INIT_LINE_SEARCH"}};
-String line_found[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "LINE_FOUND"}};
-String stop_searching[][2] = {{"team_name: ", team_name}, {"id: ", ID_EQUIPO}, {"action: ", "STOP_LINE_SEARCH"}};
-*/
 
 void setup(){
   Serial.begin(9600);
@@ -120,6 +88,7 @@ void setup(){
   //Inicio de la máquina de estados:
   state = -1;
   stop = false;
+  lost = false;
 }
 
 void loop(){
@@ -155,11 +124,11 @@ void loop(){
     } else {
       if (state == 1) {
         FastLED.showColor(Color(0, 255, 0));
-        if(line_R() > 500) {
+        if(line_R() > 400) {
           previus_state = "right";
           follow_line();
         } else {
-          if(line_L() > 500) {
+          if(line_L() > 400) {
             previus_state = "left";
             follow_line();
           } 
@@ -191,17 +160,6 @@ void loop(){
   }
 }
 
-// Seguir de frente
-void forward() {
-  digitalWrite(PIN_Motor_STBY, true);
-  digitalWrite(PIN_Motor_AIN_1, HIGH);
-  analogWrite(PIN_Motor_PWMA, SPEED_MAX);
-  digitalWrite(PIN_Motor_BIN_1, HIGH);
-  analogWrite(PIN_Motor_PWMB, SPEED_MAX);
-
-  Serial.println("go forward!");
-}
-
 // Girar a la izquierda
 void left(){
   digitalWrite(PIN_Motor_STBY, true);
@@ -209,8 +167,6 @@ void left(){
   analogWrite(PIN_Motor_PWMA, SPEED_MAX);
   digitalWrite(PIN_Motor_BIN_1, LOW);
   analogWrite(PIN_Motor_PWMB, SPEED_MAX);
-  
-  Serial.println("go left!");
 }
 
 // Girar a la derecha
@@ -220,8 +176,6 @@ void right(){
   analogWrite(PIN_Motor_PWMA, SPEED_MAX);
   digitalWrite(PIN_Motor_BIN_1, HIGH);
   analogWrite(PIN_Motor_PWMB, SPEED_MAX);
-
-  Serial.println("go right!");
 }
 
 // Detener el movimiento
@@ -229,8 +183,6 @@ void stop_movement(){
   digitalWrite(PIN_Motor_STBY, false);
   analogWrite(PIN_Motor_PWMB, 0);
   analogWrite(PIN_Motor_PWMA, 0);
-
-  Serial.println("stop!");
 }
 
 uint32_t Color(uint8_t r, uint8_t g, uint8_t b)
@@ -238,6 +190,7 @@ uint32_t Color(uint8_t r, uint8_t g, uint8_t b)
   return (((uint32_t)r << 16) | ((uint32_t)g << 8) | b);
 }
 
+// Calculo de PID del sigue linea
 void follow_line() {
   float lineL = line_L();
   float lineM = line_M();
@@ -253,6 +206,7 @@ void follow_line() {
   drive(vbase+u,vbase-u);
 }
 
+// Navegar con la velocidad obtenida del PID
 void drive(int L, int R) {
   digitalWrite(PIN_Motor_STBY, true);
   digitalWrite(PIN_Motor_AIN_1, HIGH);
@@ -261,28 +215,37 @@ void drive(int L, int R) {
   analogWrite(PIN_Motor_PWMB, R);
 }
 
-// Calculo de giro
+// Ver en que estado entrar
 int line_tracking() {
   float lineL = line_L();
   float lineM = line_M();
   float lineR = line_R();
   int estado;
-  if (lineM > 500) {
+
+  // Seguir de frente
+  if (lineM > 400) {
     estado = 0;
     line_lost_searching = false;
     time_lost_init = millis();
   } else {
-    if ((lineR > 500) || (lineL > 500)) {
+    // Girar
+    if ((lineR > 400) || (lineL > 400)) {
       estado = 1;
       line_lost_searching = false;
       time_lost_init = millis();
+      if (lost) {
+        Serial.println(String(LINE_FOUND) + "}");
+        lost = false;
+      }
+    // linea perdida
     } else {
       if (!line_lost_searching) {
         estado = 2;
       }
-      if ((millis() - time_lost_init > 1000) && (millis() - time_lost_init < 1100)) {
+      if ((millis() - time_lost_init > 500) && (millis() - time_lost_init < 600)) {
         Serial.println(String(LINE_LOST) + "}");
-        line_lost_searching = true;       
+        line_lost_searching = true;    
+        lost = true;   
       }
       if (millis() - time_lost_init > 3000) {
         estado = 3;       
@@ -322,7 +285,7 @@ float UltraSonic_DistanceCm()
 // Calculo de la distancia al obstaculo
 bool stop_car() {
   float distance = UltraSonic_DistanceCm();
-  if (distance < 10) { // 8 cm
+  if (distance < MAX_DISTANCE) { // En realidad queda a 7 cm
     Serial.println(String(OBSTACLE) + "}");
     return true;
   }
