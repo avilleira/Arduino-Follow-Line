@@ -47,9 +47,16 @@
 #define RXD2 33
 #define TXD2 4
 
+/********************** Global Variables *************************************/
+
+unsigned long ping_counter;
+unsigned long lap_timer;
+
+bool stop = false;
+
 // Enumeration of all the possible actions:
 enum actions {
-  START,
+  START = 0,
   FINISH,
   OBSTACLE, 
   LINE_LOST, 
@@ -78,18 +85,6 @@ Adafruit_MQTT_Publish pub = Adafruit_MQTT_Publish(&mqtt, "/SETR/2022/9/");
 
 // Function to connect and reconnect as necessary to the MQTT server.
 // Should be called in the loop function and it will take care if connecting.
-
-// Creating JSON objects:
-
- //JSONVar start_lap;
- //
- //start_lap["team_name"] = "Robotitos";
- //start_lap["id"] = 9;
-
- //Creating all the possible messages. We define two differents types of JSON messages, first with time stamp and second without it:
- StaticJsonDocument<256> msg_no_time; // For START, OBSTACLE_DETECTED, LINE_LOST, SEARCHING_LINE, STOP_SEARCHING, LINE_FOUND
- StaticJsonDocument<256> msg_time;
-
 
 void initWiFi() {
 
@@ -137,28 +132,63 @@ void MQTT_connect() {
 
 String sendBuff;
 
-void recv_serial_msg() {
+long recv_serial_msg() {
+  char c;
+  long action;
   if (Serial2.available()) {
     
-    char c = Serial2.read();
+    c = Serial2.read();
     if (c != '}') 
       sendBuff += c;
     
     if (c == '}')  {        
       Serial.print("Received data in serial port from Arduino: ");
       Serial.println(sendBuff);
+      action = sendBuff.toInt();
       sendBuff = "";
     } 
   }
+  if (action < START || action > PING)
+    return -1;
+  else
+    return action;
 }
 
-void publish_msg() {
-  msg_no_time["action"] = "START_LAP";
+void publish_msg(int action) {
+
+  StaticJsonDocument<256> msg;
+  char out[128];
+
+  msg["team_name"] = "Robotitos";
+  msg["id"] = "9";
+  if (action == START){
+    Serial.println("ENTRO");
+    msg["action"] = "START_LAP";
+  }
+  else if (action == FINISH){
+    msg["action"] = "END_LAP";
+    msg["time"] = millis() - lap_timer;
+  }
+  else if (action == OBSTACLE)
+    msg["action"] = "OBSTACLE_DETECTED";
+  else if (action == LINE_LOST)
+    msg["action"] = "LINE_LOST";
+  else if (action == LINE_FOUND)
+    msg["action"] = "LINE_FOUND";
+  else if (action == SEARCHING_LINE)
+    msg["action"] = "INIT_LINE_SEARCH";
+  else if (action == STOP_SEARCHING)
+    msg["action"] = "STOP_LINE_SEARCH";
+  else{
+    msg["action"] = "PING";
+    msg["time"] = millis() - lap_timer;
+  }
 
   //Serializing in order to publish in the topic:
-  char out[128];
-  serializeJson(msg_no_time, out);
-  pub.publish(out);
+  if (action != -1) {
+    serializeJson(msg, out);
+    pub.publish(out);
+  }
 }
 
 void setup() {
@@ -186,25 +216,29 @@ void setup() {
   Serial.println("WiFi connected");
   Serial.println("IP address: "); Serial.println(WiFi.localIP());
 
-  //Initializing first values of the JSON msgs:
-  //When it has time:
-  msg_no_time["team_name"] = "Robotitos";
-  msg_time["team_name"] = "Robotitos";
-  msg_no_time["id"] = "9";
-  msg_time["id"] = "9";
-}
+  // publishing start lap:
+  MQTT_connect();
+  publish_msg(START);
 
-uint32_t x=0;
+  // Initializing lap_counter:
+  lap_timer = millis();
+  // Initializing ping_counter:
+  ping_counter = millis();
+}
 
 void loop() {
   // Ensure the connection to the MQTT server is alive (this will make the first
   // connection and automatically reconnect when disconnected).  See the MQTT_connect
   // function definition further below.
   MQTT_connect();
-  publish_msg();
-  recv_serial_msg();
-  
-  // wait a couple seconds to avoid rate limit
-  delay(2000);
+  while (!stop) {
+    //updating ping_counter:
+    if ((millis() - ping_counter) > 4000) {
+      publish_msg(PING);
+      ping_counter = millis();
+    }
 
+    //Publishing the corresponding message:
+    publish_msg(recv_serial_msg());
+  }
 }
