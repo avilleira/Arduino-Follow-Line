@@ -126,7 +126,6 @@ void MQTT_connect() {
 
   Serial.println("MQTT Connected!");
   digitalWrite(LED, HIGH);
-  Serial2.println("A");
 }
 
 int recv_serial_msg() {
@@ -134,7 +133,6 @@ int recv_serial_msg() {
   int action;
   String sendBuff;
   if (Serial2.available() > 0) {
-    
     c = Serial2.read();
     sendBuff += (char)c;     
     action = sendBuff.toInt();
@@ -172,44 +170,13 @@ void publish_msg(int action) {
       msg["time"] = millis() - lap_timer;
     }
 
-<<<<<<< HEAD
-  msg["team_name"] = "Robotitos";
-  msg["id"] = "9";
-  if ()
-    if (action == START){
-      Serial.println("ENTRO");
-      msg["action"] = "START_LAP";
-    }
-    else if (action == FINISH){
-      msg["action"] = "END_LAP";
-      msg["time"] = millis() - lap_timer;
-    }
-    else if (action == OBSTACLE)
-      msg["action"] = "OBSTACLE_DETECTED";
-    else if (action == LINE_LOST)
-      msg["action"] = "LINE_LOST";
-    else if (action == LINE_FOUND)
-      msg["action"] = "LINE_FOUND";
-    else if (action == SEARCHING_LINE)
-      msg["action"] = "INIT_LINE_SEARCH";
-    else if (action == STOP_SEARCHING)
-      msg["action"] = "STOP_LINE_SEARCH";
-    else{
-      msg["action"] = "PING";
-      msg["time"] = millis() - lap_timer;
-    }
 
-=======
->>>>>>> 41866c78394b2f359a9464f7b38ec11acee4dbbf
     //Serializing in order to publish in the topic:
     if (action != -1) {
       serializeJson(msg, out);
       pub.publish(out);
     }
-<<<<<<< HEAD
-=======
   }
->>>>>>> 41866c78394b2f359a9464f7b38ec11acee4dbbf
 }
 
 void setup() {
@@ -244,6 +211,7 @@ void setup() {
   start_msg["team_name"] = "Robotitos";
   start_msg["id"] = "9";
   start_msg["action"] = "START_LAP";
+  Serial2.println("A");
   serializeJson(start_msg, out);
   pub.publish(out);
   // Initializing lap_counter:
@@ -258,11 +226,12 @@ void loop() {
   // function definition further below.
   while (!stop) {
     //updating ping_counter:
-    if ((millis() - ping_counter) >= 4000) {
+    if ((millis() - ping_counter) > 3980) {
       publish_msg(PING);
       ping_counter = millis();
     }
-    publish_msg(recv_serial_msg());
     //Publishing the corresponding message:
+    publish_msg(recv_serial_msg());
+    
   }
 }
