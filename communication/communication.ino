@@ -172,12 +172,44 @@ void publish_msg(int action) {
       msg["time"] = millis() - lap_timer;
     }
 
+<<<<<<< HEAD
+  msg["team_name"] = "Robotitos";
+  msg["id"] = "9";
+  if ()
+    if (action == START){
+      Serial.println("ENTRO");
+      msg["action"] = "START_LAP";
+    }
+    else if (action == FINISH){
+      msg["action"] = "END_LAP";
+      msg["time"] = millis() - lap_timer;
+    }
+    else if (action == OBSTACLE)
+      msg["action"] = "OBSTACLE_DETECTED";
+    else if (action == LINE_LOST)
+      msg["action"] = "LINE_LOST";
+    else if (action == LINE_FOUND)
+      msg["action"] = "LINE_FOUND";
+    else if (action == SEARCHING_LINE)
+      msg["action"] = "INIT_LINE_SEARCH";
+    else if (action == STOP_SEARCHING)
+      msg["action"] = "STOP_LINE_SEARCH";
+    else{
+      msg["action"] = "PING";
+      msg["time"] = millis() - lap_timer;
+    }
+
+=======
+>>>>>>> 41866c78394b2f359a9464f7b38ec11acee4dbbf
     //Serializing in order to publish in the topic:
     if (action != -1) {
       serializeJson(msg, out);
       pub.publish(out);
     }
+<<<<<<< HEAD
+=======
   }
+>>>>>>> 41866c78394b2f359a9464f7b38ec11acee4dbbf
 }
 
 void setup() {

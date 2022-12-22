@@ -32,7 +32,7 @@
 
 // definiciones
 #define NUM_LEDS 1
-#define MAX_DISTANCE 10 
+#define MAX_DISTANCE 12
 #define SPEED_MAX 150
 
 #define team_name "Robotitos"
@@ -50,8 +50,8 @@ unsigned long time_lost_init;
 bool line_lost_searching;
 bool lost;
 bool stop;
-const int vmin=80;
-const int vmax=130;
+const int vmin=100;
+const int vmax=150;
 const float kp=0.07;
 const float ki=0.0004;
 const float kd=0.01;
@@ -89,6 +89,7 @@ void setup(){
   state = -1;
   stop = false;
   lost = false;
+  previus_state = "right";
 }
 
 void loop(){
@@ -101,14 +102,12 @@ void loop(){
   if (state == -1) {
     String message = serialPort_read();
     FastLED.showColor(Color(255, 0, 0));
-    /*while (message == "None") {
+    while (message == "None") {
       message = serialPort_read();
-    }*/
-    Serial.println(message);
+    }
     Serial.println(String(START) + "}");
   }
-  long time_init = millis();
-  long time_finish;
+
   while (!stop) {
     stop = stop_car();
     if (stop) {
@@ -124,18 +123,18 @@ void loop(){
     } else {
       if (state == 1) {
         FastLED.showColor(Color(0, 255, 0));
-        if(line_R() > 400) {
+        if(line_R() > 500) {
           previus_state = "right";
           follow_line();
         } else {
-          if(line_L() > 400) {
+          if(line_L() > 500) {
             previus_state = "left";
             follow_line();
           } 
         }
       } else {
         if (state == 2) {
-          if (line_lost_searching) {
+          if ((line_lost_searching) && (lost == true)) {
             line_lost_searching = false;
             FastLED.showColor(Color(0, 0, 255));
             Serial.println(String(SEARCHING_LINE) + "}");
@@ -144,9 +143,7 @@ void loop(){
           if (previus_state == "right") {
             right();            
           } else {
-            if (previus_state == "left") {
-              left();              
-            }
+            left();
           }
         }        
         if (state == 3) {
@@ -223,13 +220,17 @@ int line_tracking() {
   int estado;
 
   // Seguir de frente
-  if (lineM > 400) {
+  if (lineM > 500) {
     estado = 0;
     line_lost_searching = false;
     time_lost_init = millis();
+    if (lost) {
+      Serial.println(String(LINE_FOUND) + "}");
+      lost = false;
+    }
   } else {
     // Girar
-    if ((lineR > 400) || (lineL > 400)) {
+    if ((lineR > 500) || (lineL > 500)) {
       estado = 1;
       line_lost_searching = false;
       time_lost_init = millis();
@@ -239,15 +240,14 @@ int line_tracking() {
       }
     // linea perdida
     } else {
-      if (!line_lost_searching) {
-        estado = 2;
-      }
-      if ((millis() - time_lost_init > 500) && (millis() - time_lost_init < 600)) {
+      estado = 2;
+      if (!line_lost_searching){
         Serial.println(String(LINE_LOST) + "}");
         line_lost_searching = true;    
         lost = true;   
       }
       if (millis() - time_lost_init > 3000) {
+        Serial.println(String(STOP_SEARCHING) + "}");
         estado = 3;       
       }      
     }
