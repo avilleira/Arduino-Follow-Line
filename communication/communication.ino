@@ -25,6 +25,10 @@
 // the slider feed sets the PWM output of this pin
 #define PWMOUT 12
 
+// Time that the ping should publish:
+
+#define PING_VALUE 3980
+
 /************************* WiFi Access Point *********************************/
 
 #define WLAN_SSID "sensoresurjc"  
@@ -226,7 +230,7 @@ void loop() {
   // function definition further below.
   while (!stop) {
     //updating ping_counter:
-    if ((millis() - ping_counter) > 3980) {
+    if ((millis() - ping_counter) > PING_VALUE) {
       publish_msg(PING);
       ping_counter = millis();
     }
